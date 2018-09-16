@@ -37,12 +37,14 @@ class TerraformInstance(BaseCommand):
         self.temp_dir = None
 
         self._sanity_check()
+        self.setup()
 
     def __repr__(self):
         return f"<TerraformCommand version={self.version!r}>"
 
     def __enter__(self):
-        self.setup()
+        if not self.temp_dir:
+            self.setup()
 
     def __exit__(self, type, value, tb):
         self.cleanup()
