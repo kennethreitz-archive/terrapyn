@@ -1,4 +1,6 @@
 import os
+import tempfile
+
 import delegator
 
 from . import environment
@@ -28,15 +30,30 @@ class BaseCommand:
         return (c.out.strip() or c.err.strip()).split("\n")
 
 
-class TerraformCommand(BaseCommand):
+class TerraformInstance(BaseCommand):
     def __init__(self, *, environ=None):
         self.environ = environment.evaluate(environ=environ)
         self.version = None
+        self.temp_dir = None
 
         self._sanity_check()
 
     def __repr__(self):
         return f"<TerraformCommand version={self.version!r}>"
+
+    def __enter__(self):
+        self.setup()
+
+    def __exit__(self, type, value, tb):
+        self.cleanup()
+
+    def setup(self):
+        self.temp_dir = tempfile.mkdtemp(suffix="-terraform-plan", prefix="terrapyn-")
+
+    def cleanup(self):
+        if self.temp_dir:
+            os.rmdir(self.temp_dir)
+            self.temp_dir = None
 
     def _tf(self, *args, output=True):
         cmd = [self.environ["TERRAFORM_PATH"]] + list(args)
