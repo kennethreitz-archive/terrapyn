@@ -1,1 +1,1 @@
-from .terraform import TerraformInstance
+from .terraform import Terraform

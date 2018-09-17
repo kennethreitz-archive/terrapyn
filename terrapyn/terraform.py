@@ -32,7 +32,7 @@ class BaseCommand:
         return (c.out.strip() or c.err.strip()).split("\n")
 
 
-class TerraformInstance(BaseCommand):
+class Terraform(BaseCommand):
     def __init__(self, *, working_dir=None, environ=None):
         self.environ = environment.evaluate(environ=environ)
         self._version = None
