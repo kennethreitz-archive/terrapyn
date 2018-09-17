@@ -1,7 +1,9 @@
 import os
 import tempfile
+import pathlib
 
 import delegator
+import semver
 
 from . import environment
 from .exceptions import DependencyNotFound
@@ -31,13 +33,17 @@ class BaseCommand:
 
 
 class TerraformInstance(BaseCommand):
-    def __init__(self, *, environ=None):
+    def __init__(self, *, working_dir=None, environ=None):
         self.environ = environment.evaluate(environ=environ)
-        self.version = None
-        self.temp_dir = None
+        self._version = None
+        self._temp_dir = None
+        if working_dir:
+            self._working_dir = pathlib.Path(working_dir)
+        else:
+            self._working_dir = None
 
-        self._sanity_check()
         self.setup()
+        self._sanity_check()
 
     def __repr__(self):
         return f"<TerraformCommand version={self.version!r}>"
@@ -50,16 +56,40 @@ class TerraformInstance(BaseCommand):
         self.cleanup()
 
     def setup(self):
-        self.temp_dir = tempfile.mkdtemp(suffix="-terraform-plan", prefix="terrapyn-")
+        if not self.temp_dir and self.temp_dir is not False:
+            self.temp_dir
 
     def cleanup(self):
         if self.temp_dir:
             os.rmdir(self.temp_dir)
-            self.temp_dir = None
+            self._temp_dir = False
 
-    def _tf(self, *args, output=True):
+    @property
+    def version(self):
+        return f"{self._version['major']}.{self._version['minor']}.{self._version['patch']}"
+
+    @property
+    def temp_dir(self):
+        if not self._temp_dir:
+            self._temp_dir = pathlib.Path(tempfile.mkdtemp(suffix="-terraform-plan", prefix="terrapyn-"))
+
+        return self._temp_dir
+
+    @property
+    def working_dir(self):
+        # Make the working directory, if it doesn't already exist.
+        if self._working_dir:
+            os.makedirs(self._working_dir, exist_okay=True)
+            return self._working_dir
+        else:
+            return self.temp_dir
+
+    def tf(self, *args, output=True):
+        # Change to working directory.
+        os.chdir(self.temp_dir)
+
         cmd = [self.environ["TERRAFORM_PATH"]] + list(args)
-        c = delegator.run(cmd, timeout=self.environ["TERRAPYN_TIMEOUT"])
+        c = delegator.run(cmd, timeout=self.environ["TERRAPYN_TIMEOUT"], cwd=self.working_dir)
         if not output:
             return c
         else:
@@ -67,4 +97,4 @@ class TerraformInstance(BaseCommand):
             return c.out.strip()
 
     def _sanity_check(self):
-        self.version = self._tf("--version").split()[1][1:]
+        self._version = semver.parse(self.tf("--version").split()[1][1:])
