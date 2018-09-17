@@ -71,7 +71,9 @@ class TerraformInstance(BaseCommand):
     @property
     def temp_dir(self):
         if not self._temp_dir:
-            self._temp_dir = pathlib.Path(tempfile.mkdtemp(suffix="-terraform-plan", prefix="terrapyn-"))
+            self._temp_dir = pathlib.Path(
+                tempfile.mkdtemp(suffix="-terraform-plan", prefix="terrapyn-")
+            )
 
         return self._temp_dir
 
@@ -89,7 +91,9 @@ class TerraformInstance(BaseCommand):
         os.chdir(self.temp_dir)
 
         cmd = [self.environ["TERRAFORM_PATH"]] + list(args)
-        c = delegator.run(cmd, timeout=self.environ["TERRAPYN_TIMEOUT"], cwd=self.working_dir)
+        c = delegator.run(
+            cmd, timeout=self.environ["TERRAPYN_TIMEOUT"], cwd=self.working_dir
+        )
         if not output:
             return c
         else:
